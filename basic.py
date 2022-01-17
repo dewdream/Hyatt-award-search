@@ -6,17 +6,34 @@ from PyQt5.QtCore import QDate
 import pandas as pd
 from playwright.sync_api import sync_playwright
 
-def LoadWeb(URL, df, dates):
-
+def load_web(URL, df, dates):
     with sync_playwright() as p:
         browser = p.firefox.launch(headless=False)
         page = browser.new_page()
         page.goto(URL, wait_until="domcontentloaded")
         time.sleep(6)
+        try:
+            alert_page = page.query_selector("//div[@class='b-pv3 alert-warn']")
+        except:
+            alert_page = None
 
-        ua = page.query_selector_all("//div[@class='p-rate-card  b-ph0@md']")
+        if alert_page is not None:
+            alert_text = alert_page.inner_text()
+            if 'Unfortunately, this hotel is not available' in alert_text:
+                ua = []
+            else:
+                ua = page.query_selector_all("//div[@class='p-rate-card  b-ph0@md']")
+        else:
+            ua = []
+
         if ua:
-            title = page.query_selector("//div[@class='hotel-name-text b-text_display-1 b-text_weight-bold']").inner_text()
+            temp_title = page.query_selector("//div[@class='hotel-name-text b-text_display-1 b-text_weight-bold']")
+
+            if temp_title is None:
+                temp_title = page.query_selector("//div[@class='b-text_copy-5 b-text_weight-light b-text_style-uppercase']")
+
+            title = temp_title.inner_text()
+
             data = []
             for item in ua:
                 room_type = item.query_selector("//div[@data-js='room-title']").inner_text()
@@ -32,6 +49,7 @@ def LoadWeb(URL, df, dates):
 
         new_df =pd.DataFrame(data, columns=['Check-in', 'Check-out', 'Hotel', 'Room type', 'Points'])
         df = pd.concat([df, new_df], ignore_index=True)
+        browser.close()
     return df
 
 class Form(QtWidgets.QDialog):
@@ -103,7 +121,7 @@ class Form(QtWidgets.QDialog):
         df=pd.DataFrame()
         for item in dates_list_string:
             URL_concat = self.get_URL_concat(item)
-            df = LoadWeb(URL_concat, df, item)
+            df = load_web(URL_concat, df, item)
 
         self.tableWidget = QTableWidget()
         self.tableWidget.setWindowTitle("Search Result")
@@ -117,8 +135,7 @@ class Form(QtWidgets.QDialog):
         self.tableWidget.setSizeAdjustPolicy(QtWidgets.QAbstractScrollArea.AdjustToContents)
         self.tableWidget.horizontalHeader().setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
         self.tableWidget.show()
-
-        #self.ui.go_button.setEnabled(True)
+        self.ui.go_button.setEnabled(True)
 
 if __name__ == '__main__':
     app = QtWidgets.QApplication(sys.argv)
