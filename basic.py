@@ -15,17 +15,24 @@ def load_web(URL, df, dates):
         try:
             alert_page = page.query_selector("//div[@class='b-pv3 alert-warn']")
         except:
-            alert_page = None
+            alert_page = True
 
-        if alert_page is not None:
-            alert_text = alert_page.inner_text()
-            if 'Unfortunately, this hotel is not available' in alert_text:
-                ua = []
-            else:
-                ua = page.query_selector_all("//div[@class='p-rate-card  b-ph0@md']")
+        if alert_page is True or alert_page is not None:
+            try:
+                alert_text = alert_page.inner_text()
+                if 'Unfortunately, this hotel is not available' in alert_text:
+                    ua = []    
+            except:
+                try:
+                    ua = page.query_selector_all("//div[@class='p-rate-card  b-ph0@md']")
+                except:
+                    ua = []
         else:
-            ua = []
-
+            try:
+                ua = page.query_selector_all("//div[@class='p-rate-card  b-ph0@md']")
+            except:
+                ua = []
+                
         if ua:
             temp_title = page.query_selector("//div[@class='hotel-name-text b-text_display-1 b-text_weight-bold']")
 
